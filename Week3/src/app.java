@@ -1,81 +1,52 @@
 import java.util.*;
 
-abstract class Room {
+class Reservation {
 
-    private String type;
-    private int beds;
-    private int size;
-    private double price;
+    private String guestName;
+    private String roomType;
 
-    public Room(String type, int beds, int size, double price) {
-        this.type = type;
-        this.beds = beds;
-        this.size = size;
-        this.price = price;
+    public Reservation(String guestName, String roomType) {
+        this.guestName = guestName;
+        this.roomType = roomType;
     }
 
-    public String getType() {
-        return type;
+    public String getGuestName() {
+        return guestName;
     }
 
-    public void displayDetails() {
-        System.out.println("Room Type: " + type);
-        System.out.println("Beds: " + beds);
-        System.out.println("Size: " + size + " sq.ft");
-        System.out.println("Price: $" + price);
+    public String getRoomType() {
+        return roomType;
+    }
+
+    public void displayRequest() {
+        System.out.println("Guest: " + guestName + " | Requested Room: " + roomType);
     }
 }
 
-class SingleRoom extends Room {
-    public SingleRoom() {
-        super("Single Room", 1, 200, 100);
-    }
-}
+class BookingRequestQueue {
 
-class DoubleRoom extends Room {
-    public DoubleRoom() {
-        super("Double Room", 2, 350, 180);
-    }
-}
+    private Queue<Reservation> requestQueue;
 
-class SuiteRoom extends Room {
-    public SuiteRoom() {
-        super("Suite Room", 3, 500, 300);
-    }
-}
-
-class RoomInventory {
-
-    private HashMap<String, Integer> inventory;
-
-    public RoomInventory() {
-        inventory = new HashMap<>();
-
-        inventory.put("Single Room", 10);
-        inventory.put("Double Room", 7);
-        inventory.put("Suite Room", 0); // example unavailable room
+    public BookingRequestQueue() {
+        requestQueue = new LinkedList<>();
     }
 
-    public int getAvailability(String roomType) {
-        return inventory.getOrDefault(roomType, 0);
+    public void addRequest(Reservation reservation) {
+        requestQueue.add(reservation);
+        System.out.println("Booking request added for " + reservation.getGuestName());
     }
-}
 
-class SearchService {
+    public void displayQueue() {
 
-    public void searchAvailableRooms(RoomInventory inventory, List<Room> rooms) {
+        System.out.println("\n===== BOOKING REQUEST QUEUE =====");
 
-        System.out.println("===== AVAILABLE ROOMS =====\n");
+        if (requestQueue.isEmpty()) {
+            System.out.println("No booking requests in queue.");
+            return;
+        }
 
-        for (Room room : rooms) {
-
-            int available = inventory.getAvailability(room.getType());
-
-            if (available > 0) {
-                room.displayDetails();
-                System.out.println("Available Rooms: " + available);
-                System.out.println();
-            }
+        for (Reservation r : requestQueue) {
+            r.displayRequest();
         }
     }
 }
@@ -84,17 +55,18 @@ public class app {
 
     public static void main(String[] args) {
 
-        RoomInventory inventory = new RoomInventory();
+        BookingRequestQueue bookingQueue = new BookingRequestQueue();
 
-        List<Room> rooms = new ArrayList<>();
-        rooms.add(new SingleRoom());
-        rooms.add(new DoubleRoom());
-        rooms.add(new SuiteRoom());
+        Reservation r1 = new Reservation("Alice", "Single Room");
+        Reservation r2 = new Reservation("Bob", "Double Room");
+        Reservation r3 = new Reservation("Charlie", "Suite Room");
 
-        SearchService searchService = new SearchService();
+        bookingQueue.addRequest(r1);
+        bookingQueue.addRequest(r2);
+        bookingQueue.addRequest(r3);
 
-        searchService.searchAvailableRooms(inventory, rooms);
+        bookingQueue.displayQueue();
 
-        System.out.println("Search completed. System state unchanged.");
+        System.out.println("\nRequests stored in arrival order. Awaiting allocation.");
     }
 }
