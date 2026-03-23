@@ -1,79 +1,93 @@
-import java.io.*;
 import java.util.*;
 
 public class app {
 
     public static void main(String[] args) {
 
-        PersistenceService service = new PersistenceService();
+        RoomInventory inventory = new RoomInventory();
+        BookingProcessor processor = new BookingProcessor(inventory);
 
-        SystemState state = service.loadState();
+        processor.addRequest(new Reservation("Alice", "Single Room"));
+        processor.addRequest(new Reservation("Bob", "Single Room"));
+        processor.addRequest(new Reservation("Charlie", "Single Room"));
 
-        if (state == null) {
-            System.out.println("No previous data found. Starting fresh.");
+        Thread t1 = new Thread(processor);
+        Thread t2 = new Thread(processor);
 
-            state = new SystemState();
-
-            state.inventory.put("Single Room", 2);
-            state.inventory.put("Suite Room", 1);
-
-            state.bookings.put("RES101", "Single Room");
-            state.bookings.put("RES102", "Suite Room");
-
-        } else {
-            System.out.println("System recovered successfully!");
-        }
-
-        System.out.println("\nCurrent Inventory: " + state.inventory);
-        System.out.println("Current Bookings: " + state.bookings);
-
-        service.saveState(state);
-
-        System.out.println("\nState saved. You can restart program to see recovery.");
+        t1.start();
+        t2.start();
     }
 }
 
-class SystemState implements Serializable {
+class Reservation {
 
-    HashMap<String, Integer> inventory;
-    HashMap<String, String> bookings;
+    String guestName;
+    String roomType;
 
-    public SystemState() {
+    public Reservation(String guestName, String roomType) {
+        this.guestName = guestName;
+        this.roomType = roomType;
+    }
+}
+
+class RoomInventory {
+
+    private HashMap<String, Integer> inventory;
+
+    public RoomInventory() {
         inventory = new HashMap<>();
-        bookings = new HashMap<>();
+        inventory.put("Single Room", 2); // limited rooms
+    }
+
+    public synchronized boolean allocateRoom(String type) {
+
+        int available = inventory.getOrDefault(type, 0);
+
+        if (available > 0) {
+            inventory.put(type, available - 1);
+            return true;
+        }
+
+        return false;
     }
 }
 
-class PersistenceService {
+class BookingProcessor implements Runnable {
 
-    private static final String FILE_NAME = "system_state.ser";
+    private Queue<Reservation> queue;
+    private RoomInventory inventory;
 
-    public void saveState(SystemState state) {
-
-        try (ObjectOutputStream oos =
-                     new ObjectOutputStream(new FileOutputStream(FILE_NAME))) {
-
-            oos.writeObject(state);
-            System.out.println("\nState persisted to file.");
-
-        } catch (IOException e) {
-            System.out.println("Error saving data: " + e.getMessage());
-        }
+    public BookingProcessor(RoomInventory inventory) {
+        this.inventory = inventory;
+        queue = new LinkedList<>();
     }
 
-    public SystemState loadState() {
+    public synchronized void addRequest(Reservation r) {
+        queue.add(r);
+    }
 
-        try (ObjectInputStream ois =
-                     new ObjectInputStream(new FileInputStream(FILE_NAME))) {
+    public void run() {
 
-            return (SystemState) ois.readObject();
+        while (true) {
 
-        } catch (FileNotFoundException e) {
-            return null;
+            Reservation r;
 
-        } catch (Exception e) {
-            System.out.println("Recovery failed. Starting fresh.");
-            return null;
+            synchronized (this) {
+                if (queue.isEmpty()) {
+                    return;
+                }
+                r = queue.poll();
+            }
+
+            boolean success = inventory.allocateRoom(r.roomType);
+
+            if (success) {
+                System.out.println(Thread.currentThread().getName() +
+                        " → Booking Confirmed for " + r.guestName);
+            } else {
+                System.out.println(Thread.currentThread().getName() +
+                        " → Booking FAILED for " + r.guestName);
+            }
         }
     }
 }
